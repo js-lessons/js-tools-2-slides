@@ -202,7 +202,7 @@ Store.getItem(0)                                  // 'ho'
         </section>
 
         <section>
-          <h4>require v2</h4>
+          <h4>финальный шаг. require v2</h4>
           <pre><code data-trim>
 function require(name) {
   if (name in require.cache)
@@ -215,24 +215,299 @@ function require(name) {
   require.cache[name] = module.exports;
   return module.exports;
 }
+
 require.cache = Object.create(null);
           </code></pre>
         </section>
 
         <section>
           <h4>browserify</h4>
+
+          <pre><code data-trim>
+var unique = require('uniq');
+
+var data = [1, 2, 2, 3, 4, 5, 5, 5, 6];
+
+console.log(unique(data));
+          </code></pre>
+
+          <pre><code data-trim>
+> npm install uniq
+          </code></pre>
+
+          <pre><code data-trim>
+browserify main.js -o bundle.js
+          </code></pre>
+
+          <pre><code data-trim>
+<script src="bundle.js"></script>
+          </code></pre>
+        </section>
+
+        <section data-background="#fff">
+          <h4>или webpack</h4>
+          <img src="images/what-is-webpack.png" alt="" style="box-shadow: none; border: none"/>
         </section>
 
         <section>
-        <h3>Ссылки</h3>
-          <a href="http://www.w3schools.com/js/js_numbers.asp">http://www.w3schools.com/js/js_numbers.asp</a>
-          <a href="http://www.w3schools.com/js/js_number_methods.asp">http://www.w3schools.com/js/js_number_methods.asp</a>
-          <a href="http://www.w3schools.com/js/js_strings.asp">http://www.w3schools.com/js/js_strings.asp</a>
-          <a href="http://www.w3schools.com/js/js_string_methods.asp">http://www.w3schools.com/js/js_string_methods.asp</a>
-          <a href="http://eloquentjavascript.net/01_values.html">http://eloquentjavascript.net/01_values.html</a>
-          <a href="http://eloquentjavascript.net/02_program_structure.html">http://eloquentjavascript.net/02_program_structure.html</a>
-          <a href="https://developer.mozilla.org/ru/docs/Web/JavaScript/Reference/Operators/Bitwise_Operators">Bitwise operators</a>
-          <a href="http://kripken.github.io/mloc_emscripten_talk/">http://kripken.github.io/mloc_emscripten_talk/</a>
+          <h4>AMD и requirejs</h4>
+
+          <pre><code data-trim>
+define(["store"], function(Store) {
+  console.log(Store.getItem(0));
+});
+          </code></pre>
+        </section>
+
+        <section>
+          <h4>Модуль store</h4>
+          <pre><code data-trim>
+define([], function() {
+  var items = [];
+
+  return {
+    getItem: function(n) {
+      return items[n];
+    },
+
+    addItem: function(item) {
+      items.push(item);
+    }
+  }
+});
+          </code></pre>
+        </section>
+
+        <section>
+          <h4>getModule</h4>
+
+          <pre><code data-trim>
+var defineCache = Object.create(null);
+var currentMod = null;
+
+function getModule(name) {
+  if (name in defineCache)
+    return defineCache[name];
+
+  var module = {exports: null,
+                loaded: false,
+                onLoad: []};
+  defineCache[name] = module;
+  backgroundReadFile(name, function(code) {
+    currentMod = module;
+    new Function("", code)();
+  });
+  return module;
+}
+          </code></pre>
+        </section>
+
+        <section>
+          <h4>define</h4>
+          <pre><code data-trim style="min-height: 550px;">
+function define(depNames, moduleFunction) {
+  var myMod = currentMod;
+  var deps = depNames.map(getModule);
+
+  deps.forEach(function(mod) {
+    if (!mod.loaded)
+      mod.onLoad.push(whenDepsLoaded);
+  });
+
+  function whenDepsLoaded() {
+    if (!deps.every(function(m) { return m.loaded; }))
+      return;
+
+    var args = deps.map(function(m) { return m.exports; });
+    var exports = moduleFunction.apply(null, args);
+    if (myMod) {
+      myMod.exports = exports;
+      myMod.loaded = true;
+      myMod.onLoad.every(function(f) { f(); });
+    }
+  }
+  whenDepsLoaded();
+}
+          </code></pre>
+        </section>
+
+        <section>
+          <h4>Минусы</h4>
+          <pre><code style="min-height: 600px;">
+require.config
+  # starting point for application
+  deps: ['backbone', 'backbone.marionette', 'marionette.handlebars', 'main']
+
+  shim:
+    dropbox:
+      exports: 'Dropbox'
+
+  paths:
+    jquery: '../bower_components/jquery/jquery'
+    backbone: '../bower_components/backbone-amd/backbone'
+    underscore: '../bower_components/underscore-amd/underscore'
+    dropbox: 'vendor/dropbox-datastores-0.1.0-b6'
+    dbxDatastore: '../bower_components/backbone.dbxDatastore/dist/backbone.dbxDatastore'
+    wookmark: '../bower_components/wookmark-jquery/jquery.wookmark'
+
+    #alias all marionette libs
+    'backbone.marionette': '../bower_components/backbone.marionette/lib/core/amd/backbone.marionette'
+    'backbone.wreqr': '../bower_components/backbone.wreqr/lib/amd/backbone.wreqr'
+    'backbone.babysitter': '../bower_components/backbone.babysitter/lib/amd/backbone.babysitter'
+
+    # Alias text.js for template loading and shortcut the templates dir to tmpl */
+    text: '../bower_components/requirejs-text/text'
+    tmpl: 'templates'
+
+    # Models and collections paths
+    models: 'models'
+    collections: 'collections'
+
+    # handlebars from the require handlerbars plugin below
+    handlebars: '../bower_components/require-handlebars-plugin/Handlebars'
+
+    # require handlebars plugin - Alex Sexton
+    i18nprecompile: '../bower_components/require-handlebars-plugin/hbs/i18nprecompile'
+    json2: '../bower_components/require-handlebars-plugin/hbs/json2'
+    hbs: '../bower_components/require-handlebars-plugin/hbs'
+
+    # marionette and handlebars plugin
+    'marionette.handlebars': '../bower_components/backbone.marionette.handlebars/backbone.marionette.handlebars'
+
+  config:
+    app:
+      loadTasks: true
+
+    'packages/authorization/main':
+      key: '9jllu8tntncc6ic'
+
+  packages: [
+    'packages/task-runner'
+    'packages/authorization'
+    'packages/dom-handlers'
+    'packages/layouts'
+    'packages/recipe-list'
+    'packages/recipe'
+  ]
+
+  hbs:
+    disableI18n: true
+          </code></pre>
+        </section>
+
+        <section>
+          <h2>Bonus round</h2>
+        </section>
+
+        <section>
+          <h3>Angular.js</h3>
+          <h4>Рекомендации по разбиению на модули</h4>
+          <ul>
+            <li>Модуль для каждой фичи</li>
+            <li>Модуль для каждого компонента который может быть использован несколько раз</li>
+            <li>Модуль уровня приложения, который зависит от вышеперечисленных модулей содержит код для инициализации</li>
+          </ul>
+        </section>
+
+        <section>
+          <pre><code data-trim style="min-height: 670px;">
+angular.module('xmpl.service', [])
+  .value('greeter', {
+    salutation: 'Hello',
+    localize: function(localization) {
+      this.salutation = localization.salutation;
+    },
+    greet: function(name) {
+      return this.salutation + ' ' + name + '!';
+    }
+  })
+  .value('user', {
+    load: function(name) {
+      this.name = name;
+    }
+  });
+angular.module('xmpl.directive', []);
+angular.module('xmpl.filter', []);
+angular.module('xmpl', ['xmpl.service', 'xmpl.directive', 'xmpl.filter'])
+  .run(function(greeter, user) {
+    // This is effectively part of the main method initialization code
+    greeter.localize({
+      salutation: 'Bonjour'
+    });
+    user.load('World');
+  })
+  .controller('XmplController', function($scope, greeter, user){
+    $scope.greeting = greeter.greet(user.name);
+  });
+          </code></pre>
+        </section>
+
+        <section>
+          <h4>Sprockets</h4>
+          <p>Rack-based asset packaging</p>
+
+          <pre><code data-trim>
+//= require jquery
+//= require jquery_ujs
+//= require jquery-ui
+//= require jquery.event.move/js/jquery.event.move
+//= require jquery.event.swipe/js/jquery.event.swipe
+//= require fotorama
+//= require html5shiv
+//= require underscore
+//= require_directory ./plugins/underscore
+
+//= require_directory ./public
+          </code></pre>
+        </section>
+
+        <section>
+          <h4>ECMAScript 6</h4>
+          <ul>
+            <li>компактный синтаксис</li>
+            <li>поддержка циклических зависимостей</li>
+            <li>поддержка асинхронной загрузки</li>
+          </ul>
+        </section>
+
+        <section>
+          <h4>примеры</h4>
+
+          <pre><code data-trim>
+//------ lib.js ------
+export const sqrt = Math.sqrt;
+export function square(x) {
+    return x * x;
+}
+export function diag(x, y) {
+    return sqrt(square(x) + square(y));
+}
+
+//------ main.js ------
+import { square, diag } from 'lib';
+console.log(square(11)); // 121
+console.log(diag(4, 3)); // 5
+          </code></pre>
+        </section>
+
+        <section>
+          <h4>или так</h4>
+
+          <pre><code data-trim>
+//------ main.js ------
+import * as lib from 'lib';
+console.log(lib.square(11)); // 121
+console.log(lib.diag(4, 3)); // 5
+          </code></pre>
+        </section>
+
+        <section>
+          <h3>Ссылки</h3>
+          <a href="http://browserify.org/">http://browserify.org/</a><br />
+          <a href="http://webpack.github.io/">http://webpack.github.io/</a><br />
+          <a href="https://github.com/sstephenson/sprockets">https://github.com/sstephenson/sprockets</a>
+          <a href="http://www.2ality.com/2014/09/es6-modules-final.html">http://www.2ality.com/2014/09/es6-modules-final.html</a>
+          <a href="http://eloquentjavascript.net/10_modules.html">http://eloquentjavascript.net/10_modules.html</a>
         </section>
 			</div>
 
